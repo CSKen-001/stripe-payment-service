@@ -33,12 +33,12 @@ app = FastAPI(title="Stripe Payment Service", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-metrics_middleware = MetricsMiddleware(app)
 app.add_middleware(
     SecurityMiddleware,
     allowed_ips=settings.get_allowed_ips_list(),
     max_request_size=settings.max_request_size,
 )
+app.add_middleware(MetricsMiddleware)
 
 
 @app.on_event("startup")
@@ -96,7 +96,7 @@ def detailed_health():
 def metrics():
     if not settings.enable_metrics:
         raise HTTPException(status_code=404, detail="Metrics disabled")
-    m = metrics_middleware.get_metrics()
+    m = MetricsMiddleware.get_metrics()
     lines = [
         "# HELP webhook_requests_total Total webhook requests",
         "# TYPE webhook_requests_total counter",

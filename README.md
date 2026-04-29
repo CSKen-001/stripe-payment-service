@@ -131,6 +131,74 @@ async def payment_callback(request: Request):
 Stripe ダッシュボード → Developers → Webhooks で、
 このサービスの `https://your-domain.com/webhook` を登録してください。
 
+## render.com へのデプロイ
+
+### Step 1: Web Service を作成
+
+render.com ダッシュボード → **+ New** → **Web Service** → GitHubリポジトリを選択
+
+### Step 2: 基本設定
+
+| 項目 | 値 |
+|------|-----|
+| Runtime | Python 3 |
+| Branch | main |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+
+### Step 3: 環境変数を設定
+
+| 変数 | 値 | 備考 |
+|------|-----|------|
+| `STRIPE_SECRET_KEY` | `sk_live_xxx` | |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_placeholder` | **初回は仮の値**。Step 5 完了後に本物へ更新 |
+| `DATABASE_URL` | 既存 PostgreSQL の URL | |
+| `CALLBACK_URL` | `https://your-app.onrender.com/api/payment-callback` | |
+| `CALLBACK_SECRET` | `openssl rand -hex 32` で生成 | health-app と同じ値 |
+| `PRICE_MAP_JSON` | `{"price_xxx":"pro"}` | Stripe Price ID → プラン名 |
+| `LOG_LEVEL` | `INFO` | |
+| `LOG_FORMAT` | `json` | |
+| `STORE_FULL_PAYLOAD` | `false` | |
+
+> **注意**: `STRIPE_WEBHOOK_SECRET` はアプリ起動に必須ですが、Webhook URL は  
+> デプロイ後でないと確定しません。初回は `whsec_placeholder` を設定してデプロイし、  
+> Step 5 完了後に実際の値へ更新してください。
+
+### Step 4: デプロイ
+
+**Create Web Service** をクリックしてデプロイ完了を待つ。
+
+発行された URL を控えておく（例: `https://stripe-payment-service-xxxx.onrender.com`）
+
+### Step 5: Stripe ダッシュボードで Webhook を設定
+
+**Stripe ダッシュボード** → **Developers** → **Webhooks** → **Add endpoint**
+
+- **Endpoint URL**: `https://stripe-payment-service-xxxx.onrender.com/webhook`
+- **受信イベント**:
+  - `checkout.session.completed`
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.paid`
+  - `invoice.payment_failed`
+
+設定後に発行される **Signing secret**（`whsec_...`）を、  
+render.com の `STRIPE_WEBHOOK_SECRET` 環境変数に上書き設定する。  
+render.com が自動で再デプロイされ、Webhook 署名検証が有効になる。
+
+### Step 6: 動作確認
+
+```bash
+# ヘルスチェック（"status": "ok" が返ればOK）
+curl https://stripe-payment-service-xxxx.onrender.com/healthz
+
+# DB・Stripe 接続確認
+curl https://stripe-payment-service-xxxx.onrender.com/health/detailed
+```
+
+---
+
 ## 本番デプロイ（Gunicorn）
 
 ```bash
