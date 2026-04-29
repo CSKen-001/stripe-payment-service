@@ -153,7 +153,7 @@ render.com ダッシュボード → **+ New** → **Web Service** → GitHubリ
 | `STRIPE_SECRET_KEY` | `sk_live_xxx` | |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_placeholder` | **初回は仮の値**。Step 5 完了後に本物へ更新 |
 | `DATABASE_URL` | 既存 PostgreSQL の URL | |
-| `CALLBACK_URL` | `https://your-app.onrender.com/api/payment-callback` | |
+| `CALLBACK_URL` | `https://your-app.onrender.com/api/payment/callback` | |
 | `CALLBACK_SECRET` | `openssl rand -hex 32` で生成 | health-app と同じ値 |
 | `PRICE_MAP_JSON` | `{"price_xxx":"pro"}` | Stripe Price ID → プラン名 |
 | `LOG_LEVEL` | `INFO` | |
