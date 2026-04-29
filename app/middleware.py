@@ -54,42 +54,32 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Middleware for collecting request metrics"""
-    
-    def __init__(self, app):
-        super().__init__(app)
-        self.request_count = 0
-        self.request_duration_sum = 0.0
-        self.error_count = 0
-        
+
+    _requests_total: int = 0
+    _requests_duration_seconds_sum: float = 0.0
+    _errors_total: int = 0
+
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
-        self.request_count += 1
-        
+        MetricsMiddleware._requests_total += 1
+
         response = await call_next(request)
-        
+
         duration = time.time() - start_time
-        self.request_duration_sum += duration
-        
+        MetricsMiddleware._requests_duration_seconds_sum += duration
         if response.status_code >= 400:
-            self.error_count += 1
-            
-        # Add metrics headers
+            MetricsMiddleware._errors_total += 1
+
         response.headers["X-Request-Duration"] = f"{duration:.3f}"
-        
         return response
-    
-    def get_metrics(self) -> dict:
-        """Get current metrics"""
-        avg_duration = (
-            self.request_duration_sum / self.request_count 
-            if self.request_count > 0 else 0
-        )
-        
+
+    @classmethod
+    def get_metrics(cls) -> dict:
+        total = cls._requests_total
         return {
-            "requests_total": self.request_count,
-            "requests_duration_seconds_sum": self.request_duration_sum,
-            "requests_duration_seconds_avg": avg_duration,
-            "errors_total": self.error_count,
-            "error_rate": self.error_count / self.request_count if self.request_count > 0 else 0
+            "requests_total": total,
+            "requests_duration_seconds_sum": cls._requests_duration_seconds_sum,
+            "requests_duration_seconds_avg": cls._requests_duration_seconds_sum / total if total else 0,
+            "errors_total": cls._errors_total,
+            "error_rate": cls._errors_total / total if total else 0,
         }
